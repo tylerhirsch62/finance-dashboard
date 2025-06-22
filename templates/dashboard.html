@@ -71,15 +71,22 @@
             font-size: 18px;
             font-weight: bold;
         }
-        .ticker-checkboxes {
+        .filter-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 15px;
+            margin-bottom: 15px;
         }
-        .ticker-checkbox {
-            display: flex;
-            align-items: center;
-            margin-right: 15px;
+        .filter-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        .filter-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #495057;
         }
     </style>
 </head>
@@ -90,51 +97,80 @@
     
     <div class="filters">
         <form id="filterForm" method="GET">
-            <div class="filter-group">
-                <label>Symbols:</label>
-                <div class="ticker-checkboxes">
-                    {% for ticker in tickers %}
-                    <div class="ticker-checkbox">
-                        <input type="checkbox" name="tickers" value="{{ ticker }}" 
-                               id="ticker_{{ ticker }}" 
-                               {% if ticker in selected_tickers %}checked{% endif %}>
-                        <label for="ticker_{{ ticker }}">{{ ticker }}</label>
-                    </div>
-                    {% endfor %}
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>Symbol:</label>
+                    <select name="ticker" id="tickerSelect">
+                        {% for ticker in tickers %}
+                        <option value="{{ ticker }}" {% if ticker == selected_ticker %}selected{% endif %}>{{ ticker }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Start Date:</label>
+                    <input type="date" name="start_date" value="{{ current_filters.start_date }}" min="{{ min_date }}" max="{{ max_date }}">
+                </div>
+                
+                <div class="filter-group">
+                    <label>End Date:</label>
+                    <input type="date" name="end_date" value="{{ current_filters.end_date }}" min="{{ min_date }}" max="{{ max_date }}">
                 </div>
             </div>
             
-            <div class="filter-group">
-                <label>Start Date:</label>
-                <input type="date" name="start_date" value="{{ current_filters.start_date }}" min="{{ min_date }}" max="{{ max_date }}">
+            <div class="filter-section">
+                <h3>Price Range ($)</h3>
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Min Price:</label>
+                        <input type="number" name="min_price" value="{{ current_filters.min_price }}" min="0" max="{{ max_price_val }}" step="0.01" placeholder="0">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Max Price:</label>
+                        <input type="number" name="max_price" value="{{ current_filters.max_price }}" min="0" max="{{ max_price_val }}" step="0.01" placeholder="{{ max_price_val }}">
+                    </div>
+                </div>
             </div>
             
-            <div class="filter-group">
-                <label>End Date:</label>
-                <input type="date" name="end_date" value="{{ current_filters.end_date }}" min="{{ min_date }}" max="{{ max_date }}">
+            <div class="filter-section">
+                <h3>Volume Range</h3>
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Min Volume:</label>
+                        <input type="number" name="min_volume" value="{{ current_filters.min_volume }}" min="0" max="{{ max_vol }}" step="1000" placeholder="0">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Max Volume:</label>
+                        <input type="number" name="max_volume" value="{{ current_filters.max_volume }}" min="0" max="{{ max_vol }}" step="1000" placeholder="{{ max_vol }}">
+                    </div>
+                </div>
             </div>
             
-            <div class="filter-group">
-                <label>Min Volume:</label>
-                <input type="number" name="min_volume" value="{{ current_filters.min_volume }}" min="{{ min_vol }}" max="{{ max_vol }}" step="1000">
-            </div>
-            
-            <div class="filter-group">
-                <label>Max Volume:</label>
-                <input type="number" name="max_volume" value="{{ current_filters.max_volume }}" min="{{ min_vol }}" max="{{ max_vol }}" step="1000">
+            <div class="filter-section">
+                <h3>Volume Increase Filter</h3>
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label>Min Volume Increase (%):</label>
+                        <input type="number" name="volume_increase_threshold" value="{{ current_filters.volume_increase_threshold }}" min="0" max="1000" step="1" placeholder="50">
+                        <small style="display: block; color: #666; margin-top: 2px;">Show only days with volume increase ≥ this % from previous day</small>
+                    </div>
+                </div>
             </div>
             
             <button type="submit" class="apply-btn">Apply Filters</button>
+            <a href="/" class="apply-btn" style="text-decoration: none; margin-left: 10px;">Reset Filters</a>
         </form>
     </div>
     
     <div class="charts-container">
         <div class="chart">
-            <div class="chart-title">Candlestick Chart</div>
-            {{ candlestick_html | safe }}
+            <div class="chart-title">Stock Price Over Time</div>
+            {{ price_html | safe }}
         </div>
         <div class="chart">
-            <div class="chart-title">Volume Analysis</div>
+            <div class="chart-title">Trading Volume Over Time</div>
             {{ volume_html | safe }}
         </div>
     </div>
@@ -169,6 +205,24 @@
                 maxVolumeInput.addEventListener('input', function() {
                     if (parseFloat(this.value) < parseFloat(minVolumeInput.value)) {
                         minVolumeInput.value = this.value;
+                    }
+                });
+            }
+            
+            // Add range slider functionality for price
+            const minPriceInput = document.querySelector('input[name="min_price"]');
+            const maxPriceInput = document.querySelector('input[name="max_price"]');
+            
+            if (minPriceInput && maxPriceInput) {
+                minPriceInput.addEventListener('input', function() {
+                    if (parseFloat(this.value) > parseFloat(maxPriceInput.value)) {
+                        maxPriceInput.value = this.value;
+                    }
+                });
+                
+                maxPriceInput.addEventListener('input', function() {
+                    if (parseFloat(this.value) < parseFloat(minPriceInput.value)) {
+                        minPriceInput.value = this.value;
                     }
                 });
             }
